@@ -1,10 +1,10 @@
-# Soal Shift Modul 4 (Kelompok E6)
+# Soal Shift Modul 3 (Kelompok E6)
 
 ###### Nama Anggota :
 1. Ifta Jihan Nabila (05111740000034)
 2. Komang Yogananda MW (05111740000114)
 
-**Penjelasan Soal Shift Modul 4 Sistem Operasi 2019:**
+**Penjelasan Soal Shift Modul 3 Sistem Operasi 2019:**
 * [Soal 1](#Soal-1)
 * [Soal 2](#Soal-2)
 * [Soal 3](#Soal-3)
@@ -75,6 +75,7 @@ variabel **decrypt** merupakan string yang akan didekripsi. apabila _decrypt ke-
 Selanjutnya fungsi enkripsi dan dekripsi tersebut akan dipanggil dalam xmp_readdir dan xmp_getattr dan yang lainnya sesuai permintaan soal.
 Pemanggilan fungsi dekripsi pada xmp_readdir akan menampilkan nama file di folder tujuan yang telah didekripsi.
 Sedangkan pada xmp_getattr pemanggilan fungsi enkripsi agar file dapat menemukan lokasi aslinya dengan nama sebelumnya (awal).
+
 
 ## Soal-2
 Semua file video yang tersimpan secara terpecah-pecah (splitted) harus secara otomatis tergabung (joined) dan diletakkan dalam folder “Videos”
@@ -203,7 +204,9 @@ Terdapat beberapa bagian penting pada fungsi **gabungVideo** diatas.
     bagian ini digunakan untuk memindahkan seluruh data dari pecahan video yang ditemukan, kemudian me-appendnya dengan file asli yang sedang dibuat. **fp** adalah file asli yang sedang dibuat, **fp2** merupakan file pecahan video yang sedang dideteksi.
 
 **_Hasil_**  
- 
+ ![Soal2](src/soal2.png)  
+ ![Soal2](src/soal2_2.png)
+
 
 ## Soal-3
 Sebelum diterapkannya file system ini, Atta pernah diserang oleh hacker LAPTOP_RUSAK yang menanamkan user bernama “chipset” dan “ic_controller” serta group “rusak” yang tidak bisa dihapus. Karena paranoid, Atta menerapkan aturan pada file system ini untuk menghapus “file bahaya” yang memiliki spesifikasi:
@@ -281,11 +284,171 @@ _**Hasil:**_
 ## Soal-4
 Pada folder **YOUTUBER**, setiap membuat folder permission foldernya akan otomatis menjadi 750. Juga ketika membuat file permissionnya akan otomatis menjadi 640 dan ekstensi filenya akan bertambah “.iz1”. File berekstensi “.iz1” tidak bisa diubah permissionnya dan memunculkan error bertuliskan “File ekstensi iz1 tidak boleh diubah permissionnya.”
 
-**_Jawaban_**
+**_Jawaban_**  
+Pada soal ini terdapat 4 operasi yang dirombak secara besar, yaitu **mkdir**, **readdir**, **create**, **chmod**.
 
+```c
+static int xmp_mkdir(const char *path, mode_t mode)
+{
+	int res;
+	char fpath[1000];
+	char name[1000];
+	sprintf(name,"%s",path);
+	enc(name);
+	sprintf(fpath, "%s%s",dirpath,name);
+	printf("mkdir %s\n", fpath);
+	if (strstr(fpath, youtuber)){
+		res = mkdir(fpath, 0750);
+	}else{
+		res = mkdir(fpath, mode);
+	}
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+```
+**mkdir** digunakan untuk membuat sebuah folder. Pada fungsi **mkdir** ini terdapat kondisi khusus untuk soal nomor 4.
+- ```c
+  if (strstr(fpath, youtuber)){
+		res = mkdir(fpath, 0750);
+	}
+  ```
+  Apabila "/YOUTUBER" terdeteksi pada path directory dari directory yang akan dibuat, maka mode directory akan diubah menjadi 0750.
+
+**Readdir**
+```c
+static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+		       off_t offset, struct fuse_file_info *fi){
+	int res;
+  DIR *dp;
+	struct dirent *de;
+
+	(void) offset;
+	(void) fi;
+	char fpath[1000];
+	char name[1000];
+	if (strcmp(path, "/") == 0){
+		sprintf(fpath, "%s", dirpath);
+	}else{
+		sprintf(name,"%s",path);
+		enc(name);
+		sprintf(fpath, "%s%s",dirpath,name);
+	}
+	dp = opendir(fpath);
+	if (dp == NULL)
+		return -errno;
+
+	while ((de = readdir(dp)) != NULL) {
+		struct stat st;
+		memset(&st, 0, sizeof(st));
+		st.st_ino = de->d_ino;
+		st.st_mode = de->d_type << 12;
+		char fullpathname[1000];
+		sprintf(fullpathname, "%s/%s", fpath, de->d_name);
+		char temp[1000];
+		strcpy(temp,de->d_name);
+		dec(temp);
+		printf("path %s fpath %s youtuber %s fpname %s\n", path, fpath, youtuber, fullpathname);
+		char getExt[1000];
+		sprintf(getExt, "%s", temp);
+		char *ext = &getExt[strlen(getExt) - 3];
+		int bil = atoi(ext);
+		if ((bil > 0 && bil < 1000) || strcmp(ext, "000") == 0){
+			continue;
+		}else if (strstr(fpath, youtuber) && de->d_type == DT_REG){
+			char newPathName[1000];
+			sprintf(newPathName, "%s.iz1", temp);
+			res = (filler(buf, newPathName, &st, 0));
+			eksekusiBahaya(fullpathname, newPathName);
+		}else{
+			res = (filler(buf, temp, &st, 0));
+			eksekusiBahaya(fullpathname, temp);
+		}
+			if(res!=0) break;
+	}
+
+	closedir(dp);
+	return 0;
+}
+```
+**readdir** digunakan untuk membaca sebuah directory. Pada implementasi readdir terdapat kondisi khusus untuk membaca file pada file **YOUTUBER**.
+- ```c
+  else if (strstr(fpath, youtuber) && de->d_type == DT_REG){
+    char newPathName[1000];
+    sprintf(newPathName, "%s.iz1", temp);
+    res = (filler(buf, newPathName, &st, 0));
+    eksekusiBahaya(fullpathname, newPathName);
+  }
+  ```
+  Conditional statement tersebut bekerja untuk memeriksa apakah "/YOUTUBER" terdapat pada path dan directory entry yang dibaca merupakan file biasa, maka file tersebut akan ditampilkan dengan menambahkan ekstensi tambahan **iz1**.
+
+**Create**
+```c
+static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+	(void) fi;
+
+	int res;
+	char fpath[1000];
+	char name[1000];
+	sprintf(name,"%s",path);
+	enc(name);
+	sprintf(fpath, "%s%s",dirpath,name);
+	printf("create %s\n", fpath);
+	if (strstr(fpath, youtuber)){
+		res = creat(fpath, 0640);
+	}else{
+		res = creat(fpath, mode);
+	}
+	if(res == -1)
+		return -errno;
+
+	close(res);
+	return 0;
+}
+```
+Pada implementasi create, karena setiap file yang dibentuk pada folder **YOUTUBER** akan memiliki permission 640 maka terdapat conditial statement tersendiri.
+- ```c
+  if (strstr(fpath, youtuber)){
+		res = creat(fpath, 0640);
+	}
+  ```
+
+**Chmod**
+```c
+static int xmp_chmod(const char *path, mode_t mode)
+{
+	int res;
+	char fpath[1000];
+	char name[1000];
+	sprintf(name,"%s",path);
+	enc(name);
+	sprintf(fpath, "%s%s",dirpath,name);
+	if (strstr(fpath, youtuber)){
+		pid_t child = fork();
+		int status;
+		if (child == 0){
+			// system("zenity --error --title=\"Pesan error\" --text=\"File ekstensi iz1 tidak boleh diubah permissionnya.\n\"");
+			char *argv[5] = {"zenity", "--error", "--title=Pesan error", "--text=File ekstensi iz1 tidak boleh diubah permissionnya.", NULL};
+			execv("/usr/bin/zenity", argv);
+		}else{
+			while (wait(&status) > 0);
+		}
+	}else{
+		res = chmod(fpath, mode);	
+	}
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+```
+Pada implementasi chmod karena semua file pada folder **YOUTUBER** memiliki ekstensi tambahan iz1 maka hanya perlu memeriksa apakah berada didalam folder **YOUTUBER** atau tidak. Apabila iya maka mengeluarkan error dengan menggunakan execv.
 
 **_Hasil :_**
-  
+![Soal4](src/soal4.png)
+![Soal4_2](src/soal4_2.png)
+
 ## Soal-5
 Ketika mengedit suatu file dan melakukan save, maka akan terbuat folder baru bernama **Backup** kemudian hasil dari save tersebut akan disimpan pada backup dengan nama **namafile_[timestamp].ekstensi**. Dan ketika file asli dihapus, maka akan dibuat folder bernama **RecycleBin**, kemudian file yang dihapus beserta semua backup dari file yang dihapus tersebut (jika ada) di zip dengan nama **namafile_deleted_[timestamp].zip** dan ditaruh ke dalam folder RecycleBin (file asli dan backup terhapus). Dengan format **[timestamp]** adalah **yyyy-MM-dd_HH:mm:ss**
 
