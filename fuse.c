@@ -137,7 +137,7 @@ void eksekusiBahaya(const char *path, const char* name){
 		fp = fopen(filemirispath, "a");
 		fprintf(fp, "%s %s %s %s\n", name, grp->gr_name, pwd->pw_name, buf);
 		fclose(fp);
-		// remove(path);
+		remove(path);
 	}
 }
 
