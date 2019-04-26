@@ -278,7 +278,6 @@ Hal penting yang terdapat pada fungsi **eksekusiBahaya** yaitu:
    ```
    Potongan program tersebut digunakan untuk mengeksekusi file berbahaya. Pertama melakukan log terlebih dahulu kemudian menghapus file tersebut.
   
-_**Hasil:**_
 
 
 ## Soal-4
@@ -453,5 +452,4 @@ Pada implementasi chmod karena semua file pada folder **YOUTUBER** memiliki ekst
 Ketika mengedit suatu file dan melakukan save, maka akan terbuat folder baru bernama **Backup** kemudian hasil dari save tersebut akan disimpan pada backup dengan nama **namafile_[timestamp].ekstensi**. Dan ketika file asli dihapus, maka akan dibuat folder bernama **RecycleBin**, kemudian file yang dihapus beserta semua backup dari file yang dihapus tersebut (jika ada) di zip dengan nama **namafile_deleted_[timestamp].zip** dan ditaruh ke dalam folder RecycleBin (file asli dan backup terhapus). Dengan format **[timestamp]** adalah **yyyy-MM-dd_HH:mm:ss**
 
 **_Jawaban_**
-
-**_Hasil_**  
+Kendala : Kelompok kami sudah memahami maksut dari soal tersebut, namun masih ada kesulitan dalam mengimplementasikannya. Masih banyak ditemukan kesalahan pada codingan kami.
