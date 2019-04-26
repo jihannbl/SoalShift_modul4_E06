@@ -1,10 +1,10 @@
-# Soal Shift Modul 3 (Kelompok E6)
+# Soal Shift Modul 4 (Kelompok E6)
 
 ###### Nama Anggota :
 1. Ifta Jihan Nabila (05111740000034)
 2. Komang Yogananda MW (05111740000114)
 
-**Penjelasan Soal Shift Modul 3 Sistem Operasi 2019:**
+**Penjelasan Soal Shift Modul 4 Sistem Operasi 2019:**
 * [Soal 1](#Soal-1)
 * [Soal 2](#Soal-2)
 * [Soal 3](#Soal-3)
