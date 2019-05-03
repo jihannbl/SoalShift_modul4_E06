@@ -322,12 +322,13 @@ static int xmp_chmod(const char *path, mode_t mode)
 }
 
 
-static int xmp_truncate(const char *path, off_t size){
+static int xmp_truncate(const char *path, off_t size)
+{
 	int res;
-	char fpath[1000];
-	char name[1000];
+    char fpath[1000];
+    char name[1000];
 	sprintf(name,"%s",path);
-	enc(name);
+    enc(name);
 	sprintf(fpath, "%s%s",dirpath,name);
 	res = truncate(fpath, size);
 	if (res == -1)
@@ -336,26 +337,28 @@ static int xmp_truncate(const char *path, off_t size){
 	return 0;
 }
 
-static int xmp_utimens(const char *path, const struct timespec ts[2]){
-	int res;
-	struct timeval tv[2];
-
-	tv[0].tv_sec = ts[0].tv_sec;
-	tv[0].tv_usec = ts[0].tv_nsec / 1000;
-	tv[1].tv_sec = ts[1].tv_sec;
-	tv[1].tv_usec = ts[1].tv_nsec / 1000;
-	char fpath[1000];
-	char name[1000];
-	sprintf(name,"%s",path);
+static int xmp_utimens(const char *path, const struct timespec ts[2])
+{
+	char fpath[1000], name[1000];
+	strcpy(name, path);
 	enc(name);
-	sprintf(fpath, "%s%s",dirpath,name);
-	res = utimes(fpath, tv);
+
+	if(strcmp(name,"/") == 0)
+	{
+		path=dirpath;
+		sprintf(fpath,"%s",path);
+	}
+	else sprintf(fpath, "%s%s",dirpath,name);
+
+	int res;
+
+	res = utimensat(0, fpath, ts, AT_SYMLINK_NOFOLLOW);
+	
 	if (res == -1)
 		return -errno;
 
 	return 0;
 }
-
 static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 {
 	int res;
@@ -421,19 +424,106 @@ void xmp_destroy(void *private_data){
 	rmdir(videosPath);
 }
 
+int posisi(char *s, char ch){
+	char *a = NULL;
+	char *b = strchr(s, ch);
+
+ 	while(b != NULL){
+		a = b;
+ 		b = strchr(b+1, ch);
+	}
+	if(a==NULL)
+		return 0;
+
+ 	return (int) (a-s);
+ }
+
+static int xmp_unlink(const char *path)
+{
+	char fpath[1000], temp[1000];
+	strcpy(temp, path);
+	enc(temp);
+
+	if(strcmp(temp,"/") == 0)
+	{
+		path=dirpath;
+		sprintf(fpath,"%s",path);
+	}
+	else sprintf(fpath, "%s%s",dirpath,temp);
+
+	int res, status;
+
+	if(access(fpath, F_OK)<0)			
+		return 0;
+
+	char soal[1000], soal2[1000], waktu[100], file_zip[1000], fileasli[1000], ext[1000],
+			namafile[1000], pathNow[1000];
+	
+	char fd_recyclebin[100]="/home/jihan/shift4/oO.k.EOX[)";
+	mkdir(fd_recyclebin, 0777);
+
+	int posisi_ext = posisi(path, '.');
+	
+	if (posisi_ext==0)
+		posisi_ext = strlen(path);
+	else{
+		strcpy(ext, path+posisi_ext);
+	}
+	strcpy(fileasli, path);
+	enc(fileasli);	
+
+	int posisi_slash = posisi(path, '/');
+	int dot = posisi_ext-(posisi_slash+1);
+	strncpy(namafile, path+1+posisi_slash, dot);
+	namafile[dot] = '\0';
+
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	sprintf(waktu, "%04d-%02d-%02d_%02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	sprintf(file_zip, "%s_deleted_%s", namafile, waktu);
+	char zip_temp[1000], file_zip_temp[1000]; 
+	char zip[100]="`S[u";
+	enc(file_zip);
+	enc(namafile);
+	
+	sprintf(file_zip_temp, "%s.zip", file_zip);
+	sprintf(zip_temp, "%s%s", file_zip, zip);
+
+	char backup[100] = "XB.Jhu"; char recycle[100]= "oO.k.EOX[)";
+	sprintf(soal, "cd %s && zip '%s/%s' '%s' '%s/%s'* && rm -f '%s/%s'*", dirpath, recycle, file_zip, fileasli, backup, namafile, backup, namafile);
+	sprintf(soal2, "%s && cp '%s/%s' '%s/%s' && rm -f '%s/%s'", soal, recycle, file_zip_temp, recycle, zip_temp, recycle, file_zip_temp); 
+	if (fork()==0)
+		execlp("bash","bash", "-c", soal2, NULL);
+
+		while((wait(&status))>0);
+
+
+	res = unlink(fpath);
+	
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
 
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	int fd;
 	int res;
-  char fpath[1000];
-  char name[1000];
-  char temp[1000];
+    char fpath[1000];
+    char name[1000];
+    char temp[1000];
 	sprintf(name,"%s",path);
-  enc(name);
-	sprintf(fpath, "%s%s",dirpath,name);
-	strcpy(temp, fpath);
+    enc(name);
+	if(strcmp(path,"/") == 0)
+	{
+		path=dirpath;
+		sprintf(fpath,"%s",path);
+	}
+	else sprintf(fpath, "%s%s",dirpath,name);
+	
 	(void) fi;
 	fd = open(fpath, O_WRONLY);
 	if (fd == -1)
@@ -445,53 +535,49 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 
 	close(fd);
 	
-	int len = strlen(fpath);
-	int i;
-	for(i=len; i>0; i--)
-	{
-		if(fpath[i]!='/')
-		{
-			strcpy(name,fpath+i); //ambil dari belakang	
-		}
-		else break;
-	}
-	int len2 = strlen(name);
-	len-=len2;
-	fpath[len]=0;
-	strcat(fpath, "XB.Jhu");
-	mkdir(fpath, 0750);
+	strcpy(temp,path); enc(temp);
+	sprintf(name, "%s/%s", dirpath,temp);
 	
-	char ext[100];
-	for(i=len2; i>0; i--)
-	{
-		if(name[i]!='.')
-		{
-			strcpy(ext,name+i-1); //ambil dari belakang	
-		}
-		else 
-		{
-			name[i]=0; break;
-		}
-	}
+		if(access(name, R_OK)<0)				
+		return res;
 	
-	char waktu[50];
-    time_t wkt = time(NULL);
-    strftime(waktu, 50, "_%Y-%m-%d_%H:%M:%S", localtime(&wkt));
-    enc(waktu);
-    
-    char sim[2]="/";
-    strcat(fpath, sim);
-    strcat(fpath,name);
-    strcat(fpath,waktu);
-    strcat(fpath, ext);
-    
-    pid_t child = fork();
-    if(child==0)
-    {
-    	char *argv[4] = {"cp", temp, fpath, NULL};
-    	execv("/bin/cp", argv);
+	char fd_backup[1000]="/home/jihan/shift4/XB.Jhu";
+	mkdir(fd_backup, 0777);
+	
+	char namafile[1000], ext[100], waktu[1000], filejadi[1000];
+	
+	int posisi_ext = posisi(path,'.');
+	
+	if (posisi_ext==0) {
+		posisi_ext = strlen(path);
+		ext[0] = '\0';
 	}
-    
+	else{
+		strcpy(ext, path+posisi_ext);
+	}
+	int posisi_slash = posisi(path, '/');
+	int dot = posisi_ext-(posisi_slash+1);
+	strncpy(namafile, path+1+posisi_slash, dot);
+	namafile[dot] = '\0';
+	
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	sprintf(waktu, "%04d-%02d-%02d_%02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	sprintf(filejadi, "%s_%s", namafile, waktu); 
+	strcat(filejadi, ext);	
+	enc(filejadi);
+	sprintf(name, "%s%s", dirpath, temp);
+	
+	char final[1000];
+	sprintf(final, "%s/%s", fd_backup, filejadi);
+
+	int status;
+	if (fork()==0)
+		execlp("cp","cp", name, final, NULL);
+
+	while((wait(&status))>0);
+	
 	return res;
 }
 
@@ -508,6 +594,7 @@ static struct fuse_operations xmp_oper = {
 	.truncate = xmp_truncate,
 	.utimens = xmp_utimens,
 	.destroy = xmp_destroy,
+	.unlink = xmp_unlink,
   .write = xmp_write,
 	// .mknod = xmp_mknod,
 };
