@@ -672,3 +672,10 @@ if (fork()==0)
 Pada variabel **soal** digunakan untuk membuat zip pada folder RecycleBin nantinya dan akan menghapus semua file backup dari file yang telah dihapus (jika ada). Karena ekstensi .zip belum terenkripsi, maka dibuatkan variabel **soal2** yang digunakan untuk copy zip yang sudah ada dengan zip yang sudah memiliki ekstensi .zip yang telah terenkripsi sehingga saat kita lihat pada filesystem file nya sudah terdekripsi dengan benar. Lalu zip yang lama akan dihapus.
 
 **_Hasil:_**
+![Soal5](src/shift4.png)
+![Soal5_2](src/halo.png)
+![Soal5_3](src/edit.png)
+![Soal5_4](src/zip.png)
+![Soal5_5](src/empty.png)
+
+
