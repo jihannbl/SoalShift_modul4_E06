@@ -457,7 +457,7 @@ static int xmp_unlink(const char *path)
 		return 0;
 
 	char soal[1000], soal2[1000], waktu[100], file_zip[1000], fileasli[1000], ext[1000],
-			namafile[1000], pathNow[1000];
+			namafile[1000];
 	
 	char fd_recyclebin[100]="/home/jihan/shift4/oO.k.EOX[)";
 	mkdir(fd_recyclebin, 0777);
