@@ -452,4 +452,223 @@ Pada implementasi chmod karena semua file pada folder **YOUTUBER** memiliki ekst
 Ketika mengedit suatu file dan melakukan save, maka akan terbuat folder baru bernama **Backup** kemudian hasil dari save tersebut akan disimpan pada backup dengan nama **namafile_[timestamp].ekstensi**. Dan ketika file asli dihapus, maka akan dibuat folder bernama **RecycleBin**, kemudian file yang dihapus beserta semua backup dari file yang dihapus tersebut (jika ada) di zip dengan nama **namafile_deleted_[timestamp].zip** dan ditaruh ke dalam folder RecycleBin (file asli dan backup terhapus). Dengan format **[timestamp]** adalah **yyyy-MM-dd_HH:mm:ss**
 
 **_Jawaban_**
-Kendala : Kelompok kami sudah memahami maksut dari soal tersebut, namun masih ada kesulitan dalam mengimplementasikannya. Masih banyak ditemukan kesalahan pada codingan kami.
+Bagian pertama yaitu untuk backup file yang telah diedit dan juga disave. Berikut ini fungsi **xmp_write()**
+
+```c
+static int xmp_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+{
+	int fd;
+	int res;
+    	char fpath[1000];
+    	char name[1000];
+    	char temp[1000];
+	sprintf(name,"%s",path);
+    	enc(name);
+	if(strcmp(path,"/") == 0)
+	{
+		path=dirpath;
+		sprintf(fpath,"%s",path);
+	}
+	else sprintf(fpath, "%s%s",dirpath,name);
+	
+	(void) fi;
+	fd = open(fpath, O_WRONLY);
+	if (fd == -1)
+		return -errno;
+
+	res = pwrite(fd, buf, size, offset);
+	if (res == -1)
+		res = -errno;
+
+	close(fd);
+	
+	strcpy(temp,path); enc(temp);
+	sprintf(name, "%s/%s", dirpath,temp);
+	
+		if(access(name, R_OK)<0)				
+		return res;
+	
+	char fd_backup[1000]="/home/jihan/shift4/XB.Jhu";
+	mkdir(fd_backup, 0777);
+	
+	char namafile[1000], ext[100], waktu[1000], filejadi[1000];
+	
+	int posisi_ext = posisi(path,'.');
+	
+	if (posisi_ext==0) {
+		posisi_ext = strlen(path);
+		ext[0] = '\0';
+	}
+	else{
+		strcpy(ext, path+posisi_ext);
+	}
+	int posisi_slash = posisi(path, '/');
+	int dot = posisi_ext-(posisi_slash+1);
+	strncpy(namafile, path+1+posisi_slash, dot);
+	namafile[dot] = '\0';
+	
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	sprintf(waktu, "%04d-%02d-%02d_%02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	sprintf(filejadi, "%s_%s", namafile, waktu); 
+	strcat(filejadi, ext);	
+	enc(filejadi);
+	sprintf(name, "%s%s", dirpath, temp);
+	
+	char final[1000];
+	sprintf(final, "%s/%s", fd_backup, filejadi);
+
+	int status;
+	if (fork()==0)
+		execlp("cp","cp", name, final, NULL);
+
+	while((wait(&status))>0);
+	
+	return res;
+}
+```
+
+Pada fungsi tersebut pertama akan membuat folder backup
+```c
+char fd_backup[1000]="/home/jihan/shift4/XB.Jhu";
+	mkdir(fd_backup, 0777);
+```
+
+lalu terdapat fungsi **posisi** untuk mendapatkan dimana posisi char untuk slash '/' dan '.'. Fungsi ini dibutuhkan agar nanti kita akan mendapatkan nama file saja dan ekstensinya saja.
+Berikut ini fungsi **posisi**
+
+```c
+int posisi(char *s, char ch){
+	char *a = NULL;
+	char *b = strchr(s, ch);
+
+ 	while(b != NULL){
+		a = b;
+ 		b = strchr(b+1, ch);
+	}
+	if(a==NULL)
+		return 0;
+
+ 	return (int) (a-s);
+ }
+```
+
+Setelah mendapatkan nama file saja tanpa ekstensi yang disimpan ke dalam variabel **namafile** kita juga akan menyimpan waktu saat ini kedalam variabel **waktu** dengan format yang telah ditentukan.
+```c
+time_t t = time(NULL);
+struct tm tm = *localtime(&t);
+sprintf(waktu, "%04d-%02d-%02d_%02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+```
+
+Lalu kita juga akan menyimpan ekstensi dari sebuah file ke dalam variabel **ext**, dan akan digabungkan dengan format namafile_waktu_ext dan disimpan pada variabel **filejadi** lalu akan dienkripsi. Setelah itu akan copy path file yang asli dengan path file jadi yang sekarang ke dalam folder backup.
+```c
+sprintf(name, "%s%s", dirpath, temp);	
+char final[1000];
+sprintf(final, "%s/%s", fd_backup, filejadi);
+
+int status;
+if (fork()==0)
+	execlp("cp","cp", name, final, NULL);
+
+while((wait(&status))>0);
+```
+
+Bagian kedua, yaitu apabila ada file yang dihapus maka akan dibuatkan folder RecycleBin. Kemudian file yang dihapus beserta semua backup dari file yang dihapus tersebut (jika ada) di zip dengan format yang telah ditentukan dan ditaruh ke dalam folder RecycleBin (file asli dan backup terhapus).
+Terdapat pada fungsi xmp_unlink()
+```c
+static int xmp_unlink(const char *path)
+{
+	char fpath[1000], temp[1000];
+	strcpy(temp, path);
+	enc(temp);
+
+	if(strcmp(temp,"/") == 0)
+	{
+		path=dirpath;
+		sprintf(fpath,"%s",path);
+	}
+	else sprintf(fpath, "%s%s",dirpath,temp);
+
+	int res, status;
+
+	if(access(fpath, F_OK)<0)			
+		return 0;
+
+	char soal[1000], soal2[1000], waktu[100], file_zip[1000], fileasli[1000], ext[1000],
+			namafile[1000];
+	
+	char fd_recyclebin[100]="/home/jihan/shift4/oO.k.EOX[)";
+	mkdir(fd_recyclebin, 0777);
+
+	int posisi_ext = posisi(path, '.');
+	
+	if (posisi_ext==0)
+		posisi_ext = strlen(path);
+	else{
+		strcpy(ext, path+posisi_ext);
+	}
+	strcpy(fileasli, path);
+	enc(fileasli);	
+
+	int posisi_slash = posisi(path, '/');
+	int dot = posisi_ext-(posisi_slash+1);
+	strncpy(namafile, path+1+posisi_slash, dot);
+	namafile[dot] = '\0';
+
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	sprintf(waktu, "%04d-%02d-%02d_%02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	sprintf(file_zip, "%s_deleted_%s", namafile, waktu);
+	char zip_temp[1000], file_zip_temp[1000]; 
+	char zip[100]="`S[u";
+	enc(file_zip);
+	enc(namafile);
+	
+	sprintf(file_zip_temp, "%s.zip", file_zip);
+	sprintf(zip_temp, "%s%s", file_zip, zip);
+
+	char backup[100] = "XB.Jhu"; char recycle[100]= "oO.k.EOX[)";
+	sprintf(soal, "cd %s && zip '%s/%s' '%s' '%s/%s'* && rm -f '%s/%s'*", dirpath, recycle, file_zip, fileasli, backup, namafile, backup, namafile);
+	sprintf(soal2, "%s && cp '%s/%s' '%s/%s' && rm -f '%s/%s'", soal, recycle, file_zip_temp, recycle, zip_temp, recycle, file_zip_temp); 
+	if (fork()==0)
+		execlp("bash","bash", "-c", soal2, NULL);
+
+		while((wait(&status))>0);
+
+
+	res = unlink(fpath);
+	
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+```
+
+Pertama, akan membuat folder RecycleBin
+```c
+char fd_recyclebin[100]="/home/jihan/shift4/oO.k.EOX[)";
+mkdir(fd_recyclebin, 0777);
+```
+
+Lalu sama seperti pada fungsi write, yang juga menggunakan fungsi **posisi**, kita akan mendapatkan namafile tanpa ekstensi dan waktu sekarang. 
+Setelah itu gabungkan namafile zip tersebut dengan format namafile_deleted_waktu lalu dienkripsi dan akan disimpan di variabel **file_zip**.
+
+Karena nanti file zip tersebut akan di zip dari folder shift4, maka ekstensinya yaitu .zip. Kita akan buat terlebih dahulu variabel **file_zip_temp** yang merupakan **file_zip** dengan ekstensi _.zip_. Dan variabel **zip_temp** yang merupakan **file_zip** dengan ekstensi .zip yang telah dienkripsi.
+
+Setelah itu execute command yang telah kami buat seperti berikut
+```c
+sprintf(soal, "cd %s && zip '%s/%s' '%s' '%s/%s'* && rm -f '%s/%s'*", dirpath, recycle, file_zip, fileasli, backup, namafile, backup, namafile);
+sprintf(soal2, "%s && cp '%s/%s' '%s/%s' && rm -f '%s/%s'", soal, recycle, file_zip_temp, recycle, zip_temp, recycle, file_zip_temp); 
+if (fork()==0)
+	execlp("bash","bash", "-c", soal2, NULL);
+
+	while((wait(&status))>0);
+
+```
+
+Pada variabel **soal** digunakan untuk membuat zip pada folder RecycleBin nantinya dan akan menghapus semua file backup dari file yang telah dihapus (jika ada). Karena ekstensi .zip belum terenkripsi, maka dibuatkan variabel **soal2** yang digunakan untuk copy zip yang sudah ada dengan zip yang sudah memiliki ekstensi .zip yang telah terenkripsi sehingga saat kita lihat pada filesystem file nya sudah terdekripsi dengan benar. Lalu zip yang lama akan dihapus.
+
+**_Hasil:_**
