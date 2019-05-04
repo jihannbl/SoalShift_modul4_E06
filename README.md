@@ -423,7 +423,9 @@ static int xmp_chmod(const char *path, mode_t mode)
 	sprintf(name,"%s",path);
 	enc(name);
 	sprintf(fpath, "%s%s",dirpath,name);
-	if (strstr(fpath, youtuber)){
+	struct stat statt;
+	lstat(fpath, &statt);
+	if (strstr(fpath, youtuber) && S_ISREG(statt.st_mode)){
 		pid_t child = fork();
 		int status;
 		if (child == 0){
